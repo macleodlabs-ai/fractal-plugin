@@ -51,7 +51,7 @@ function saveConfig(home, c) {
   writeFileSync(p, JSON.stringify(c, null, 1), { mode: 384 });
   chmodSync(p, 384);
 }
-var DEFAULT_URL = "https://fractal.claudeflow.workers.dev";
+var DEFAULT_URL = "https://fractal.macleodlabs.com";
 var init_config = () => {
 };
 

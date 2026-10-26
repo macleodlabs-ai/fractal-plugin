@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-export const DEFAULT_URL = 'https://fractal.claudeflow.workers.dev'
+export const DEFAULT_URL = 'https://fractal.macleodlabs.com'
 export type Config = { url: string; token?: string }
 type Env = Record<string, string | undefined>
 
