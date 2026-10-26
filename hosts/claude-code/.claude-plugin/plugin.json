@@ -2,5 +2,9 @@
   "name": "fractal",
   "version": "0.1.0",
   "description": "Fractal: change existing TypeScript and Python repos in place, only where a change needs, judged by the repo's own type check and tests, or map them read-only. The hosted engine plans and checks; model calls run on your Claude subscription (claude -p) and the checks run on your machine, in a copy.",
-  "author": { "name": "MacLeod Labs" }
+  "author": {
+    "name": "Macleod Labs",
+    "url": "https://macleodlabs.ai"
+  },
+  "license": "SEE LICENSE IN LICENSE"
 }

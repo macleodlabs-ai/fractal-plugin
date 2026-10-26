@@ -66,3 +66,8 @@ The client also serves MCP (`fractal mcp`), with the same as tools: `fractal_edi
 `fractal/`: TypeScript, `bun test`, `bun run typecheck` (strict), `bun run build` (one file for Node, copied to
 `hosts/claude-code/lib/fractal.mjs` for the plugin). The tests
 play the service with `test/fake-engine.ts`, which speaks the job protocol and nothing else.
+
+## Licence
+
+Proprietary to Macleod Labs: see [LICENSE](LICENSE). Installing and running the plugin to use the Fractal service is
+permitted; the source is published for transparency only.
