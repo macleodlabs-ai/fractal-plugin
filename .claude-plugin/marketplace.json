@@ -1,0 +1,16 @@
+{
+  "name": "fractal",
+  "owner": {
+    "name": "MacLeod Labs"
+  },
+  "metadata": {
+    "description": "Fractal for Claude Code: change or map TypeScript and Python repos with Fractal's hosted engine, your Claude subscription and your own machine."
+  },
+  "plugins": [
+    {
+      "name": "fractal",
+      "source": "./hosts/claude-code",
+      "description": "Change or map TypeScript and Python repos with Fractal's hosted engine, your Claude subscription and your own machine"
+    }
+  ]
+}

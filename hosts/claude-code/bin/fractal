@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Runs the fractal client: the one bundled in this plugin (lib/), else the package next to it, else one on PATH.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ -f "$here/lib/fractal.mjs" ]; then exec node "$here/lib/fractal.mjs" "$@"; fi   # bundled with the published plugin
+pkg="$here/../../fractal"
+if [ -f "$pkg/dist/fractal.mjs" ]; then exec node "$pkg/dist/fractal.mjs" "$@"; fi
+if [ -f "$pkg/src/cli.ts" ] && command -v bun >/dev/null; then exec bun "$pkg/src/cli.ts" "$@"; fi
+for p in $(type -ap fractal); do [ "$p" != "${BASH_SOURCE[0]}" ] && exec "$p" "$@"; done
+echo "fractal: client not found; reinstall the plugin: /plugin install fractal@fractal" >&2
+exit 127
