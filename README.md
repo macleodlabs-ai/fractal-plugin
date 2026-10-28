@@ -38,7 +38,7 @@ In Claude Code (the client needs Node 20 or later; macOS, Linux, Windows):
 /fractal:connect            # sign in with GitHub or email; free while Fractal is in preview
 ```
 
-Then `/fractal:edit <the change, in words>` or `/fractal:scan`. The plugin carries the client
+Then `/fractal:edit <the change, in words>`, `/fractal:scan`, `/fractal:arch` or `/fractal:policy`. The plugin carries the client
 (`hosts/claude-code/lib/fractal.mjs`, built from `fractal/`); its model calls run on your Claude subscription.
 
 ## Use
@@ -53,7 +53,15 @@ fractal impact file::Name [--depth N]  # what a change reaches (also: fractal sc
 fractal domains                         # the modules organised into domains
 fractal offers --regions <scan job>     # refactor offers, from a scan made with --lift
 fractal edit --offer <module> --regions <scan job>   # act on one, as a dry run with its change proof
+fractal policy [--pack P] [--policy ID]   # read-only: twelve-factor, observability, module boundaries
+fractal policy --fix <policy id>        # one violated policy's remedy, as a dry-run edit
+fractal arch [--choose FINDING=PROPOSAL]   # architecture risks, options simplest first; --choose: the plan
+fractal edit --plan <plan.json or arch job>   # run that plan as a dry run with its change proof
+fractal solve --task <file or words> [--learned] [--dry-run]   # the request routed: a plan, an edit or no change, and why
 ```
+
+Architecture options keep the app one deployable (a modular monolith); a service split is listed only with
+`fractal arch --allow-split`, with its cost.
 
 `--hands claude[:MODEL]` picks the Claude model (default `$FRACTAL_HANDS`, else claude). `--record DIR` keeps every
 answer for a later `--hands replay:DIR`.

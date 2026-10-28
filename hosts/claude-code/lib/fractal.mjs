@@ -1160,13 +1160,13 @@ var init_job = __esm(() => {
 
 // src/library.ts
 import { createHash as createHash2 } from "node:crypto";
-import { existsSync as existsSync6, mkdirSync as mkdirSync6, readFileSync as readFileSync6 } from "node:fs";
-import { join as join7 } from "node:path";
+import { existsSync as existsSync7, mkdirSync as mkdirSync6, readFileSync as readFileSync7 } from "node:fs";
+import { join as join8 } from "node:path";
 function libraryRecord(repo) {
-  const p = join7(repo, ".fcg", "library");
-  if (!existsSync6(p))
+  const p = join8(repo, ".fcg", "library");
+  if (!existsSync7(p))
     return;
-  const rec = JSON.parse(readFileSync6(p, "utf8"));
+  const rec = JSON.parse(readFileSync7(p, "utf8"));
   if (typeof rec.url !== "string" || !rec.url)
     throw new Error(`${p}: no library url in it`);
   return { url: rec.url, branch: typeof rec.branch === "string" && rec.branch ? rec.branch : "main" };
@@ -1181,9 +1181,9 @@ async function teamData(repo, home, env = process.env) {
   const rec = libraryRecord(repo);
   if (!rec)
     return;
-  const dir = join7(home, "libraries", createHash2("sha256").update(rec.url).digest("hex").slice(0, 16));
-  if (!existsSync6(join7(dir, ".git"))) {
-    mkdirSync6(join7(dir, ".."), { recursive: true });
+  const dir = join8(home, "libraries", createHash2("sha256").update(rec.url).digest("hex").slice(0, 16));
+  if (!existsSync7(join8(dir, ".git"))) {
+    mkdirSync6(join8(dir, ".."), { recursive: true });
     await git(["clone", "-q", "--no-checkout", rec.url, dir], env);
   } else {
     await git(["fetch", "-q", "--prune", "origin"], env, dir);
@@ -1209,6 +1209,15 @@ async function teamData(repo, home, env = process.env) {
     ...names.includes("profile/fcg.toml") ? { profile: await show("profile/fcg.toml") } : {}
   };
 }
+async function withArchOperators(args, repo, home, say) {
+  const team = await teamData(repo, home);
+  if (!team)
+    return;
+  const operators = Object.fromEntries(Object.entries(team.operators).filter(([fam]) => fam.startsWith("arch/")).map(([fam, vs]) => [fam, vs.map(({ trials: _trials, ...v }) => v)]));
+  args.library = { operators, ...team.profile !== undefined ? { profile: team.profile } : {} };
+  if (team.plugins.length)
+    say(`the team library's plugin modules stay on this machine (${team.plugins.join(", ")}): ` + "the hosted engine runs no team code, so this solve goes without them");
+}
 async function withTeam(args, repo, home, say) {
   const team = await teamData(repo, home);
   if (!team)
@@ -1224,11 +1233,11 @@ var init_library = __esm(() => {
 });
 
 // src/models.ts
-import { existsSync as existsSync7, mkdirSync as mkdirSync7, mkdtempSync as mkdtempSync3, readFileSync as readFileSync7, writeFileSync as writeFileSync5 } from "node:fs";
+import { existsSync as existsSync8, mkdirSync as mkdirSync7, mkdtempSync as mkdtempSync3, readFileSync as readFileSync8, writeFileSync as writeFileSync6 } from "node:fs";
 import { tmpdir as tmpdir3 } from "node:os";
-import { join as join8 } from "node:path";
+import { join as join9 } from "node:path";
 function emptyDir() {
-  return mkdtempSync3(join8(tmpdir3(), "fractal-model-"));
+  return mkdtempSync3(join9(tmpdir3(), "fractal-model-"));
 }
 async function run(argv, stdin, cwd) {
   const r = await exec(argv, { stdin, cwd, timeoutMs: TIMEOUT_MS });
@@ -1359,10 +1368,10 @@ function replay(dir) {
     async complete(r) {
       const n = attempts.get(`${r.op}:${r.key}`) ?? 0;
       attempts.set(`${r.op}:${r.key}`, n + 1);
-      const p = join8(dir, `${r.op}_${r.key}.${n}.txt`);
-      if (!existsSync7(p))
+      const p = join9(dir, `${r.op}_${r.key}.${n}.txt`);
+      if (!existsSync8(p))
         throw new Error(`no recorded answer for ${r.op}:${r.key} attempt ${n} in ${dir}`);
-      const text = readFileSync7(p, "utf8");
+      const text = readFileSync8(p, "utf8");
       return { text, model: this.name, latency_s: 0, usage: { prompt_tokens: approxTokens(r.system + r.user), completion_tokens: approxTokens(text), cached_tokens: 0 }, approx: true };
     }
   };
@@ -1392,8 +1401,8 @@ function recording(inner, dir) {
       const n = attempts.get(`${r.op}:${r.key}`) ?? 0;
       attempts.set(`${r.op}:${r.key}`, n + 1);
       const a = await inner.complete(r);
-      writeFileSync5(join8(dir, `${r.op}_${r.key}.${n}.txt`), a.text);
-      writeFileSync5(join8(dir, `${r.op}_${r.key}.${n}.meta.json`), JSON.stringify({ model: a.model, duration_s: a.latency_s, ...a.usage }));
+      writeFileSync6(join9(dir, `${r.op}_${r.key}.${n}.txt`), a.text);
+      writeFileSync6(join9(dir, `${r.op}_${r.key}.${n}.meta.json`), JSON.stringify({ model: a.model, duration_s: a.latency_s, ...a.usage }));
       return a;
     }
   };
@@ -1409,8 +1418,8 @@ var init_models = __esm(() => {
 
 // src/run.ts
 import { spawn as spawn2 } from "node:child_process";
-import { existsSync as existsSync8, openSync, readFileSync as readFileSync8 } from "node:fs";
-import { join as join9, resolve as resolve2 } from "node:path";
+import { existsSync as existsSync9, openSync, readFileSync as readFileSync9 } from "node:fs";
+import { join as join10, resolve as resolve3 } from "node:path";
 function apiFor(home) {
   const c = loadConfig(home);
   if (!c.token)
@@ -1420,7 +1429,7 @@ function apiFor(home) {
 function handsFor(o) {
   let model = modelHand(o.hands || process.env.FRACTAL_HANDS || "claude", {});
   if (o.record)
-    model = recording(model, resolve2(o.record));
+    model = recording(model, resolve3(o.record));
   const testCmd = o.testCmd === undefined ? undefined : words(o.testCmd);
   const sandbox = o.sandbox === "srt" || o.sandbox === undefined && which("srt") ? "srt" : undefined;
   const off = (v) => /^(off|0|false|no)$/i.test(v ?? "");
@@ -1428,7 +1437,7 @@ function handsFor(o) {
   return { model, testCmd, sandbox, installTools };
 }
 function detectLang(repo) {
-  return existsSync8(join9(repo, "tsconfig.json")) ? "ts" : "py";
+  return existsSync9(join10(repo, "tsconfig.json")) ? "ts" : "py";
 }
 async function startJob(home, kind, args, repo, h, o) {
   const api = apiFor(home);
@@ -1444,8 +1453,8 @@ async function startJob(home, kind, args, repo, h, o) {
     o.onLine(`not sent: ${s.skipped.slice(0, 5).map((x) => `${x.path} (${x.why})`).join(", ")}${s.skipped.length > 5 ? ` and ${s.skipped.length - 5} more` : ""}`);
   if (!o.detach)
     return { job: s.job, result: await drive(api, s.job, home, hands, { onLine: o.onLine }) };
-  const flags = [...h.hands ? ["--hands", h.hands] : [], ...h.sandbox ? ["--sandbox", h.sandbox] : [], ...h.record ? ["--record", resolve2(h.record)] : [], ...h.testCmd ? ["--test-cmd", h.testCmd] : [], ...h.noInstallTools ? ["--no-install-tools"] : []];
-  const log = openSync(join9(s.dir, "drive.log"), "a");
+  const flags = [...h.hands ? ["--hands", h.hands] : [], ...h.sandbox ? ["--sandbox", h.sandbox] : [], ...h.record ? ["--record", resolve3(h.record)] : [], ...h.testCmd ? ["--test-cmd", h.testCmd] : [], ...h.noInstallTools ? ["--no-install-tools"] : []];
+  const log = openSync(join10(s.dir, "drive.log"), "a");
   const [exe, script] = self();
   spawn2(exe, [script, "_drive", s.job, ...flags], { detached: true, stdio: ["ignore", log, log], env: process.env }).unref();
   return { job: s.job };
@@ -1459,12 +1468,12 @@ function statusText(home, job) {
     out.push(`error: ${st.error}`);
   if (st.brief)
     out.push(st.brief);
-  const patch = join9(jobDir(home, job), "edit.patch");
-  if (existsSync8(patch))
-    out.push(`patch: ${patch}${existsSync8(join9(jobDir(home, job), "applied.json")) ? " (applied)" : ` · apply with: fractal apply ${job}`}`);
-  const log = join9(jobDir(home, job), "drive.log");
-  if (st.status !== "ready" && existsSync8(log)) {
-    const tail = readFileSync8(log, "utf8").trim().split(`
+  const patch = join10(jobDir(home, job), "edit.patch");
+  if (existsSync9(patch))
+    out.push(`patch: ${patch}${existsSync9(join10(jobDir(home, job), "applied.json")) ? " (applied)" : ` · apply with: fractal apply ${job}`}`);
+  const log = join10(jobDir(home, job), "drive.log");
+  if (st.status !== "ready" && existsSync9(log)) {
+    const tail = readFileSync9(log, "utf8").trim().split(`
 `).filter((l) => /error|refused|lost/i.test(l)).slice(-2);
     out.push(...tail);
   }
@@ -1499,25 +1508,25 @@ __export(exports_mcp, {
   TOOLS: () => TOOLS2
 });
 import { createInterface } from "node:readline";
-import { resolve as resolve3 } from "node:path";
+import { resolve as resolve4 } from "node:path";
 import { readdirSync as readdirSync3, statSync } from "node:fs";
-import { join as join10 } from "node:path";
+import { join as join11 } from "node:path";
 function recent(home) {
   let ids = [];
   try {
-    ids = readdirSync3(join10(home, "jobs"));
+    ids = readdirSync3(join11(home, "jobs"));
   } catch {
   }
-  const rows = ids.map((id) => ({ id, at: statSync(join10(home, "jobs", id)).mtimeMs })).sort((a, b) => b.at - a.at).slice(0, 10);
+  const rows = ids.map((id) => ({ id, at: statSync(join11(home, "jobs", id)).mtimeMs })).sort((a, b) => b.at - a.at).slice(0, 10);
   return rows.length ? rows.map((r) => `${r.id}: ${jobState(home, r.id).status}`).join(`
 `) : "no Fractal jobs on this machine yet";
 }
 async function callTool(home, name, a) {
   const lines = [];
-  const repo = resolve3(str(a.repo) ?? process.cwd());
-  const lang = str(a.lang) ?? detectLang(repo);
+  const repo = resolve4(str2(a.repo) ?? process.cwd());
+  const lang = str2(a.lang) ?? detectLang(repo);
   const sandbox = a.sandbox === "srt" || a.sandbox === "none" ? a.sandbox : undefined;
-  const hands = { sandbox, testCmd: str(a.test_cmd) };
+  const hands = { sandbox, testCmd: str2(a.test_cmd) };
   const start = async (kind, args) => {
     const { job } = await startJob(home, kind, args, repo, hands, { detach: true, onLine: (l) => lines.push(l) });
     await waitFor(home, job, num(a.wait_s, 30));
@@ -1527,8 +1536,8 @@ ${lines.join(`
 ${statusText(home, job)}`;
   };
   if (name === "fractal_edit") {
-    const task = str(a.task);
-    const operator = str(a.operator);
+    const task = str2(a.task);
+    const operator = str2(a.operator);
     if (!task && !operator)
       throw new Error("task (or operator) is required");
     if (task && operator)
@@ -1541,7 +1550,7 @@ ${statusText(home, job)}`;
       if (a[k] === true)
         args[k] = true;
     for (const k of ["test_cmd", "ask"])
-      if (str(a[k]))
+      if (str2(a[k]))
         args[k] = a[k];
     if (sandbox === "srt")
       args.sandbox = sandbox;
@@ -1549,28 +1558,28 @@ ${statusText(home, job)}`;
   }
   if (name === "fractal_scan") {
     const args = { lang };
-    if (str(a.symbol))
+    if (str2(a.symbol))
       args.symbol = a.symbol;
     if (typeof a.depth === "number")
       args.depth = a.depth;
     return start("scan", args);
   }
   if (name === "fractal_status") {
-    const job = str(a.job);
+    const job = str2(a.job);
     if (!job)
       return recent(home);
     await waitFor(home, job, num(a.wait_s, 0));
     return statusText(home, job);
   }
   if (name === "fractal_answer") {
-    const [job, q, option] = [str(a.job), str(a.question), str(a.option)];
+    const [job, q, option] = [str2(a.job), str2(a.question), str2(a.option)];
     if (!job || !q || !option)
       throw new Error("job, question and option are required");
     await answerQuestion(apiFor(home), home, job, q, option);
     return `answered ${q}: ${option}`;
   }
   if (name === "fractal_apply") {
-    const job = str(a.job);
+    const job = str2(a.job);
     if (!job)
       throw new Error("job is required");
     const r = applyJob(home, job, { undo: a.undo === true });
@@ -1593,7 +1602,7 @@ function serveMcp(home) {
     }
     const reply = (result) => m.id !== undefined && send({ jsonrpc: "2.0", id: m.id, result });
     if (m.method === "initialize") {
-      const v = str(m.params?.protocolVersion) ?? "2025-06-18";
+      const v = str2(m.params?.protocolVersion) ?? "2025-06-18";
       return reply({ protocolVersion: v, capabilities: { tools: {} }, serverInfo: { name: "fractal", version: VERSION } });
     }
     if (m.method === "ping")
@@ -1613,7 +1622,7 @@ function serveMcp(home) {
     send({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `no method ${m.method}` } });
   });
 }
-var VERSION = "0.1.0", str = (x) => typeof x === "string" && x ? x : undefined, num = (x, d) => typeof x === "number" && x >= 0 ? Math.min(x, 50) : d, repoProp, TOOLS2;
+var VERSION = "0.2.0", str2 = (x) => typeof x === "string" && x ? x : undefined, num = (x, d) => typeof x === "number" && x >= 0 ? Math.min(x, 50) : d, repoProp, TOOLS2;
 var init_mcp = __esm(() => {
   init_job();
   init_library();
@@ -1665,8 +1674,8 @@ var init_mcp = __esm(() => {
 // src/cli.ts
 init_config();
 import { spawn as spawn3 } from "node:child_process";
-import { appendFileSync, existsSync as existsSync9, readFileSync as readFileSync9 } from "node:fs";
-import { join as join11, resolve as resolve4 } from "node:path";
+import { appendFileSync, existsSync as existsSync10, readFileSync as readFileSync10 } from "node:fs";
+import { join as join12, resolve as resolve5 } from "node:path";
 
 // src/connect.ts
 init_protocol();
@@ -1791,6 +1800,123 @@ ${RULES}`);
   return ["nothing to write: install the plugin with `claude plugin marketplace add <path to public/hosts/claude-code>` then `claude plugin install fractal`"];
 }
 
+// src/arch.ts
+init_job();
+import { existsSync as existsSync6, readFileSync as readFileSync6, writeFileSync as writeFileSync5 } from "node:fs";
+import { dirname as dirname4, join as join7, resolve as resolve2 } from "node:path";
+var isObj2 = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
+var list = (x) => Array.isArray(x) ? x : [];
+var str = (x) => typeof x === "string" ? x : x === undefined || x === null ? "" : String(x);
+var cut = (s, n) => s.length > n ? `${s.slice(0, n - 1)}…` : s;
+function vcsOf(repo) {
+  if (existsSync6(join7(repo, ".git")))
+    return "repo";
+  for (let d = dirname4(resolve2(repo));; d = dirname4(d)) {
+    if (existsSync6(join7(d, ".git")))
+      return "above";
+    if (dirname4(d) === d)
+      return "none";
+  }
+}
+function planOf(home, given) {
+  if (!given)
+    throw new Error("--plan PLAN: a plan.json from fractal arch --choose, or that arch job's id");
+  const dir = jobDir(home, given);
+  let plan;
+  try {
+    if (existsSync6(given))
+      plan = JSON.parse(readFileSync6(given, "utf8"));
+    else if (existsSync6(join7(dir, "plan.json")))
+      plan = JSON.parse(readFileSync6(join7(dir, "plan.json"), "utf8"));
+    else
+      plan = JSON.parse(readFileSync6(join7(dir, "result.json"), "utf8")).report;
+    if (isObj2(plan) && isObj2(plan.plan))
+      plan = plan.plan;
+  } catch {
+    throw new Error(`--plan ${given}: no plan there; make one with fractal arch --choose FINDING=PROPOSAL`);
+  }
+  if (!isObj2(plan) || !Array.isArray(plan.steps))
+    throw new Error(`--plan ${given}: that file is not a change plan`);
+  return plan;
+}
+function keepPlan(home, job, report) {
+  if (!isObj2(report.plan))
+    return;
+  const file = join7(jobDir(home, job), "plan.json");
+  writeFileSync5(file, JSON.stringify(report.plan, null, 1));
+  return file;
+}
+function policyLines(r) {
+  const counts = isObj2(r.counts) ? r.counts : {};
+  const out = [`policies: ${Object.entries(counts).map(([k, n]) => `${str(n)} ${k}`).join(", ")}`];
+  for (const f of list(r.findings).filter(isObj2)) {
+    if (f.status === "compliant")
+      continue;
+    const why = list(f.why).map(str).join("; ");
+    const needs2 = list(f.needs).map(str);
+    out.push(`${str(f.status)} ${str(f.policy)}: ${cut(why, 200)}${needs2.length ? ` (would be settled by: ${needs2.join(", ")} evidence)` : ""}`);
+    const fix = isObj2(f.remedy) ? f.remedy : undefined;
+    if (fix && f.status === "violated") {
+      out.push(fix.kind === "edit" && fix.safe === true ? `  remedy, as an edit: fractal policy --fix ${str(f.policy)}` : `  remedy, by hand: ${cut(str(fix.task), 200)}`);
+    }
+  }
+  return out;
+}
+function archLines(r, plan) {
+  const a = isObj2(r.arch) ? r.arch : {};
+  const findings = list(a.findings).filter(isObj2);
+  const pol = isObj2(a.policies) ? a.policies : {};
+  const out = [`${findings.length} finding${findings.length === 1 ? "" : "s"} · policies ${Object.entries(pol).map(([k, n]) => `${str(n)} ${k}`).join(", ")}`];
+  for (const f of findings) {
+    out.push(`${str(f.id)} (${str(f.status)}): ${cut(str(f.risk), 160)}`);
+    for (const p of list(f.proposals).filter(isObj2)) {
+      const v = isObj2(p.verdict) ? str(p.verdict.status) : "";
+      out.push(`  ${str(p.rank)}. ${str(p.id)}${p.pattern ? ` [${str(p.pattern)}]` : ""} (${v}): ${cut(str(p.change), 120)}`);
+    }
+    if (f.not_proposed)
+      out.push(`  not proposed: ${cut(str(f.not_proposed), 160)}`);
+  }
+  const unjudged = list(a.not_judged).length;
+  if (unjudged)
+    out.push(`${unjudged} not settled (evidence or a judgment missing): see the job's result.json`);
+  if (isObj2(r.plan)) {
+    const steps = list(r.plan.steps).length;
+    out.push(`plan ${str(r.plan.id)}: ${steps} step${steps === 1 ? "" : "s"} · ${plan} · run it (a dry run, with its change proof): fractal edit --plan ${plan}`);
+  } else if (findings.length)
+    out.push("pick one: fractal arch --choose FINDING=PROPOSAL (the proposals are ranked simplest first)");
+  return out;
+}
+function fixLines(r) {
+  const before = isObj2(r.before) ? str(r.before.status) : "not applicable";
+  const out = [`${str(r.policy)}: ${before}`];
+  if (isObj2(r.edit)) {
+    const e = r.edit;
+    out.push(`edit: ${str(e.status)} (${str(e.evidence)})${e.reason ? `: ${str(e.reason)}` : ""}`);
+    if (e.proof)
+      out.push(`change proof: ${str(e.proof)}`);
+  }
+  if (isObj2(r.after))
+    out.push(`after the edit, in the copy: ${str(r.after.status)}: ${list(r.after.why).map(str).join("; ")}`);
+  if (r.reason)
+    out.push(str(r.reason));
+  return out;
+}
+function taskOf(given) {
+  const text = given && existsSync6(given) ? readFileSync6(given, "utf8") : given ?? "";
+  if (!text.trim())
+    throw new Error("fractal solve --task FILE|TEXT: the request, as a text file or in words");
+  return text;
+}
+function reportLines(kind, report, plan) {
+  if (kind === "policy")
+    return policyLines(report);
+  if (kind === "arch")
+    return archLines(report, plan);
+  if (kind === "fix")
+    return fixLines(report);
+  return [];
+}
+
 // src/cli.ts
 init_job();
 init_library();
@@ -1806,6 +1932,18 @@ your own Claude Code (claude -p, on your subscription) and your own machine.
   fractal edit --operator ID[@N] [...]            apply a learned operator from the team library (.fcg/library)
   fractal edit --offer MODULE --regions SCAN [...]  act on a refactor offer, as a dry run with its change proof
   fractal scan [--repo .] [--lang ts|py] [--lift] [--domains] [--hypotheses] [--offers] [--recall] [--detach]
+  fractal edit --plan PLAN [--run-tests] [...]    run a change plan from fractal arch --choose (its plan.json or job id)
+  fractal policy [--pack P] [--policy ID]... [--runtime FILE] [--detect]
+                                                  check the repo against the architecture policies, read-only
+  fractal policy --fix ID [--run-tests] [--test-cmd CMD]   one violated policy's remedy, as an edit (dry run)
+  fractal arch [--pack P] [--choose FINDING=PROPOSAL]... [--shape strangler_fig|branch_by_abstraction] [--allow-split]
+                                                  architecture findings, each with its options simplest first
+                                                  (one deployable; a service split only with --allow-split);
+                                                  --choose makes the change plan
+  fractal solve --task FILE|TEXT [--learned] [--dry-run] [--no-tests] [--test-cmd CMD]
+                                                  a request routed: a finding's change plan, a plain edit, or no
+                                                  change, with the route and why (--learned: the team library's
+                                                  architecture operators; --dry-run: the route only)
   fractal impact NAME [--depth N]                 what a change to one declaration reaches (or scan --symbol NAME)
   fractal domains                                 the repo's modules organised into domains
   fractal offers --regions SCAN                   refactor offers, from a scan made with --lift
@@ -1822,8 +1960,8 @@ your own Claude Code (claude -p, on your subscription) and your own machine.
          --no-install-tools   a checker or test runner the repo uses, at its version, that this machine lacks is
                               not installed into ~/.fractal/tools (or FRACTAL_INSTALL_TOOLS=off): its check does not run
          --record DIR    keep every model answer, to replay later`;
-var BOOL = new Set(["run-tests", "propagate", "check-values", "write-tests", "speculate", "lift", "domains", "hypotheses", "offers", "recall", "detach", "undo", "no-open", "no-install-tools", "help"]);
-var MANY = new Set(["route"]);
+var BOOL = new Set(["run-tests", "propagate", "check-values", "write-tests", "speculate", "lift", "domains", "hypotheses", "offers", "recall", "detach", "undo", "no-open", "no-install-tools", "help", "detect", "allow-split", "learned", "dry-run", "no-tests"]);
+var MANY = new Set(["route", "choose", "policy"]);
 function parse(argv) {
   const pos = [];
   const flags = {};
@@ -1845,10 +1983,10 @@ var out = (s) => process.stdout.write(s + `
 function regionsOf(home, scan) {
   if (!scan)
     throw new Error("--regions SCAN: the job id of a scan made with --lift, or its report as a JSON file");
-  const file = existsSync9(scan) ? scan : join11(jobDir(home, scan), "result.json");
+  const file = existsSync10(scan) ? scan : join12(jobDir(home, scan), "result.json");
   let report;
   try {
-    const got = JSON.parse(readFileSync9(file, "utf8"));
+    const got = JSON.parse(readFileSync10(file, "utf8"));
     report = file === scan ? got : got.report;
   } catch {
     throw new Error(`--regions ${scan}: no scan job or report there`);
@@ -1868,6 +2006,44 @@ function routesOf(given) {
   }
   return routes;
 }
+function archArgs(kind, args, f, flags, repo) {
+  const lines = (k) => f(k) ? f(k).split(`
+`) : [];
+  if (f("pack"))
+    args.pack = f("pack");
+  args.vcs = vcsOf(repo);
+  if (kind === "arch") {
+    if (flags["allow-split"] === true)
+      args.allow_split = true;
+    for (const c of lines("choose"))
+      if (!/^[^=]+=[^=]+$/.test(c))
+        throw new Error(`--choose takes FINDING=PROPOSAL; got ${JSON.stringify(c)}`);
+    if (f("choose"))
+      args.choose = lines("choose");
+    if (f("shape"))
+      args.shape = f("shape");
+    return;
+  }
+  if (f("runtime")) {
+    try {
+      args.runtime = JSON.parse(readFileSync10(f("runtime"), "utf8"));
+    } catch {
+      throw new Error(`--runtime ${f("runtime")}: not a JSON file of runtime observations (name -> value)`);
+    }
+  }
+  if (flags.detect === true)
+    args.detect = true;
+  if (kind === "fix") {
+    if (!f("fix"))
+      throw new Error("fractal policy --fix POLICY_ID: the policy whose remedy runs (fractal policy lists the violated ones)");
+    args.policy = f("fix");
+    if (flags["run-tests"] === true)
+      args.run_tests = true;
+    if (f("test-cmd"))
+      args.test_cmd = f("test-cmd");
+  } else if (f("policy"))
+    args.policy = lines("policy");
+}
 function open(url) {
   const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
   try {
@@ -1884,7 +2060,7 @@ async function main(argv) {
   if (sandbox !== undefined && sandbox !== "srt" && sandbox !== "none")
     throw new Error("--sandbox takes srt or none");
   const hands = { hands: f("hands"), sandbox, record: f("record"), testCmd: f("test-cmd"), noInstallTools: flags["no-install-tools"] === true };
-  const repo = resolve4(f("repo") ?? ".");
+  const repo = resolve5(f("repo") ?? ".");
   const lang = f("lang") ?? detectLang(repo);
   if (!cmd || flags.help) {
     out(USAGE);
@@ -1897,21 +2073,25 @@ async function main(argv) {
     out(`connected${typeof got.account.email === "string" ? ` as ${got.account.email}` : ""}`);
     return 0;
   }
-  if (cmd === "edit" || cmd === "scan" || cmd === "impact" || cmd === "domains" || cmd === "offers") {
+  if (cmd === "edit" || cmd === "scan" || cmd === "impact" || cmd === "domains" || cmd === "offers" || cmd === "policy" || cmd === "arch" || cmd === "solve") {
     const args = { lang };
     const on = (...ks) => {
       for (const k of ks)
         if (flags[k] === true)
           args[k.replace(/-/g, "_")] = true;
     };
-    const kind = cmd === "scan" && f("symbol") ? "impact" : cmd;
+    const kind = cmd === "scan" && f("symbol") ? "impact" : cmd === "policy" && flags.fix !== undefined ? "fix" : cmd;
     if (cmd === "edit") {
       const task = pos.join(" ").trim();
       const operator = f("operator");
-      if (f("offer"))
+      if (flags.plan !== undefined) {
+        if (task || operator || f("offer"))
+          throw new Error("fractal edit --plan is the edit: it takes no change in words, --offer or --operator");
+        args.plan = planOf(home, f("plan"));
+      } else if (f("offer"))
         Object.assign(args, { offer: f("offer"), pattern_regions: regionsOf(home, f("regions")) });
       else if (!task && !operator)
-        throw new Error('fractal edit "<the change, in words>" (or --offer MODULE --regions SCAN, or --operator ID[@N])');
+        throw new Error('fractal edit "<the change, in words>" (or --offer MODULE --regions SCAN, --operator ID[@N], or --plan PLAN)');
       if (task && operator)
         throw new Error("fractal edit takes the change in words or --operator ID[@N], not both");
       if (task)
@@ -1937,6 +2117,23 @@ async function main(argv) {
       args.pattern_regions = regionsOf(home, f("regions"));
     else if (cmd === "scan")
       on("lift", "domains", "hypotheses", "offers", "recall");
+    else if (cmd === "policy" || cmd === "arch")
+      archArgs(kind, args, f, flags, repo);
+    else if (cmd === "solve") {
+      if (pos.length)
+        throw new Error("fractal solve takes the request as --task FILE|TEXT");
+      args.task = taskOf(f("task"));
+      if (flags.learned === true) {
+        args.learned = true;
+        await withArchOperators(args, repo, home, out);
+      }
+      if (flags["dry-run"] === true)
+        args.dry_run = true;
+      if (flags["no-tests"] === true)
+        args.run_tests = false;
+      if (f("test-cmd"))
+        args.test_cmd = f("test-cmd");
+    }
     if (hands.sandbox === "srt")
       args.sandbox = hands.sandbox;
     const r = await startJob(home, kind, args, repo, hands, { detach: flags.detach === true, onLine: out });
@@ -1944,6 +2141,9 @@ async function main(argv) {
       out(`follow it with: fractal status ${r.job}`);
       return 0;
     }
+    if (r.result && ["policy", "arch", "fix"].includes(kind))
+      for (const l of reportLines(kind, r.result.report, kind === "arch" ? keepPlan(home, r.job, r.result.report) : undefined))
+        out(l);
     return r.result && ["ready", "done"].includes(r.result.status) ? 0 : 1;
   }
   if (cmd === "_drive") {
@@ -1953,10 +2153,10 @@ async function main(argv) {
     } catch (e) {
       const st = jobState(home, job);
       st.error = e.message;
-      appendFileSync(join11(jobDir(home, job), "drive.log"), `error: ${st.error}
+      appendFileSync(join12(jobDir(home, job), "drive.log"), `error: ${st.error}
 `);
-      const { writeFileSync: writeFileSync6 } = await import("node:fs");
-      writeFileSync6(join11(jobDir(home, job), "state.json"), JSON.stringify(st, null, 1));
+      const { writeFileSync: writeFileSync7 } = await import("node:fs");
+      writeFileSync7(join12(jobDir(home, job), "state.json"), JSON.stringify(st, null, 1));
       return 1;
     }
     return 0;
@@ -2003,7 +2203,7 @@ async function main(argv) {
     const host = pos[0];
     if (!HOSTS.includes(host))
       throw new Error(`fractal setup ${HOSTS.join("|")}`);
-    for (const l of setup(host, resolve4(f("dir") ?? ".")))
+    for (const l of setup(host, resolve5(f("dir") ?? ".")))
       out(l);
     return 0;
   }

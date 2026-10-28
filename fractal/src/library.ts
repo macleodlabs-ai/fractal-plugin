@@ -50,6 +50,18 @@ export async function teamData(repo: string, home: string, env: NodeJS.ProcessEn
   }
 }
 
+/** A solve's args with the team library's architecture operators (family `arch/...`, no trial history: a job's args
+ *  are capped at 64 KB), the ones `learned` looks in, and its profile. None: the solve says "not available". */
+export async function withArchOperators(args: Record<string, unknown>, repo: string, home: string, say: (s: string) => void): Promise<void> {
+  const team = await teamData(repo, home)
+  if (!team) return
+  const operators = Object.fromEntries(Object.entries(team.operators).filter(([fam]) => fam.startsWith('arch/'))
+    .map(([fam, vs]) => [fam, vs.map(({ trials: _trials, ...v }) => v)]))
+  args.library = { operators, ...(team.profile !== undefined ? { profile: team.profile } : {}) }
+  if (team.plugins.length) say(`the team library's plugin modules stay on this machine (${team.plugins.join(', ')}): `
+    + 'the hosted engine runs no team code, so this solve goes without them')
+}
+
 /** A hosted edit's args with the team library's data added: its profile, and the family `args.operator` names (a
  *  job's args are capped at 64 KB, so no other family and no trial history go). The plugins left behind are said. */
 export async function withTeam(args: Record<string, unknown>, repo: string, home: string, say: (s: string) => void): Promise<void> {

@@ -1,6 +1,6 @@
 {
   "name": "@macleodlabs/fractal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fractal's client: the fractal CLI and MCP server. Your host's model and your machine do the work; the hosted engine plans and checks it.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

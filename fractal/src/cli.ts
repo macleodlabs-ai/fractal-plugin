@@ -6,8 +6,9 @@ import { join, resolve } from 'node:path'
 import { DEFAULT_URL, fractalHome, loadConfig, saveConfig } from './config'
 import { connect } from './connect'
 import { HOSTS, setup, type Host } from './hosts'
+import { keepPlan, planOf, reportLines, taskOf, vcsOf } from './arch'
 import { answerQuestion, applyJob, drive, jobDir, jobState } from './job'
-import { withTeam } from './library'
+import { withArchOperators, withTeam } from './library'
 import { serveMcp, VERSION } from './mcp'
 import { Api, type Kind } from './protocol'
 import { apiFor, detectLang, handsFor, startJob, statusText, type HandOpts } from './run'
@@ -21,6 +22,18 @@ your own Claude Code (claude -p, on your subscription) and your own machine.
   fractal edit --operator ID[@N] [...]            apply a learned operator from the team library (.fcg/library)
   fractal edit --offer MODULE --regions SCAN [...]  act on a refactor offer, as a dry run with its change proof
   fractal scan [--repo .] [--lang ts|py] [--lift] [--domains] [--hypotheses] [--offers] [--recall] [--detach]
+  fractal edit --plan PLAN [--run-tests] [...]    run a change plan from fractal arch --choose (its plan.json or job id)
+  fractal policy [--pack P] [--policy ID]... [--runtime FILE] [--detect]
+                                                  check the repo against the architecture policies, read-only
+  fractal policy --fix ID [--run-tests] [--test-cmd CMD]   one violated policy's remedy, as an edit (dry run)
+  fractal arch [--pack P] [--choose FINDING=PROPOSAL]... [--shape strangler_fig|branch_by_abstraction] [--allow-split]
+                                                  architecture findings, each with its options simplest first
+                                                  (one deployable; a service split only with --allow-split);
+                                                  --choose makes the change plan
+  fractal solve --task FILE|TEXT [--learned] [--dry-run] [--no-tests] [--test-cmd CMD]
+                                                  a request routed: a finding's change plan, a plain edit, or no
+                                                  change, with the route and why (--learned: the team library's
+                                                  architecture operators; --dry-run: the route only)
   fractal impact NAME [--depth N]                 what a change to one declaration reaches (or scan --symbol NAME)
   fractal domains                                 the repo's modules organised into domains
   fractal offers --regions SCAN                   refactor offers, from a scan made with --lift
@@ -38,9 +51,9 @@ your own Claude Code (claude -p, on your subscription) and your own machine.
                               not installed into ~/.fractal/tools (or FRACTAL_INSTALL_TOOLS=off): its check does not run
          --record DIR    keep every model answer, to replay later`
 
-const BOOL = new Set(['run-tests', 'propagate', 'check-values', 'write-tests', 'speculate', 'lift', 'domains', 'hypotheses', 'offers', 'recall', 'detach', 'undo', 'no-open', 'no-install-tools', 'help'])
+const BOOL = new Set(['run-tests', 'propagate', 'check-values', 'write-tests', 'speculate', 'lift', 'domains', 'hypotheses', 'offers', 'recall', 'detach', 'undo', 'no-open', 'no-install-tools', 'help', 'detect', 'allow-split', 'learned', 'dry-run', 'no-tests'])
 /** Flags that may be given more than once: their values, in order, joined by a newline. */
-const MANY = new Set(['route'])
+const MANY = new Set(['route', 'choose', 'policy'])
 
 function parse(argv: string[]) {
   const pos: string[] = []
@@ -84,6 +97,31 @@ function routesOf(given: string): Record<string, string> {
   return routes
 }
 
+/** policy, fix and arch: the local command's options as the job's args; the repo's version control as this machine
+ * sees it, since no .git is uploaded. */
+function archArgs(kind: Kind, args: Record<string, unknown>, f: (k: string) => string | undefined, flags: Record<string, string | true>, repo: string) {
+  const lines = (k: string) => (f(k) ? f(k)!.split('\n') : [])
+  if (f('pack')) args.pack = f('pack')
+  args.vcs = vcsOf(repo)
+  if (kind === 'arch') {
+    if (flags['allow-split'] === true) args.allow_split = true
+    for (const c of lines('choose')) if (!/^[^=]+=[^=]+$/.test(c)) throw new Error(`--choose takes FINDING=PROPOSAL; got ${JSON.stringify(c)}`)
+    if (f('choose')) args.choose = lines('choose')
+    if (f('shape')) args.shape = f('shape')
+    return
+  }
+  if (f('runtime')) {
+    try { args.runtime = JSON.parse(readFileSync(f('runtime')!, 'utf8')) } catch { throw new Error(`--runtime ${f('runtime')}: not a JSON file of runtime observations (name -> value)`) }
+  }
+  if (flags.detect === true) args.detect = true
+  if (kind === 'fix') {
+    if (!f('fix')) throw new Error('fractal policy --fix POLICY_ID: the policy whose remedy runs (fractal policy lists the violated ones)')
+    args.policy = f('fix')
+    if (flags['run-tests'] === true) args.run_tests = true
+    if (f('test-cmd')) args.test_cmd = f('test-cmd')
+  } else if (f('policy')) args.policy = lines('policy')
+}
+
 function open(url: string) {
   const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open'
   try { spawn(cmd, [url], { stdio: 'ignore', detached: true }).unref() } catch { /* the line printed says where */ }
@@ -108,16 +146,19 @@ async function main(argv: string[]): Promise<number> {
     out(`connected${typeof got.account.email === 'string' ? ` as ${got.account.email}` : ''}`)
     return 0
   }
-  if (cmd === 'edit' || cmd === 'scan' || cmd === 'impact' || cmd === 'domains' || cmd === 'offers') {
+  if (cmd === 'edit' || cmd === 'scan' || cmd === 'impact' || cmd === 'domains' || cmd === 'offers' || cmd === 'policy' || cmd === 'arch' || cmd === 'solve') {
     const args: Record<string, unknown> = { lang }
     const on = (...ks: string[]) => { for (const k of ks) if (flags[k] === true) args[k.replace(/-/g, '_')] = true }
-    // `scan --symbol` is what `fcg impact` answers
-    const kind: Kind = cmd === 'scan' && f('symbol') ? 'impact' : cmd
+    // `scan --symbol` is what `fcg impact` answers; `policy --fix` is a fix job
+    const kind: Kind = cmd === 'scan' && f('symbol') ? 'impact' : cmd === 'policy' && flags.fix !== undefined ? 'fix' : cmd
     if (cmd === 'edit') {
       const task = pos.join(' ').trim()
       const operator = f('operator')
-      if (f('offer')) Object.assign(args, { offer: f('offer'), pattern_regions: regionsOf(home, f('regions')) })
-      else if (!task && !operator) throw new Error('fractal edit "<the change, in words>" (or --offer MODULE --regions SCAN, or --operator ID[@N])')
+      if (flags.plan !== undefined) {
+        if (task || operator || f('offer')) throw new Error('fractal edit --plan is the edit: it takes no change in words, --offer or --operator')
+        args.plan = planOf(home, f('plan'))
+      } else if (f('offer')) Object.assign(args, { offer: f('offer'), pattern_regions: regionsOf(home, f('regions')) })
+      else if (!task && !operator) throw new Error('fractal edit "<the change, in words>" (or --offer MODULE --regions SCAN, --operator ID[@N], or --plan PLAN)')
       if (task && operator) throw new Error('fractal edit takes the change in words or --operator ID[@N], not both')
       if (task) args.task = task
       if (operator) args.operator = operator
@@ -133,9 +174,19 @@ async function main(argv: string[]): Promise<number> {
       if (f('depth')) args.depth = Number(f('depth'))
     } else if (cmd === 'offers') args.pattern_regions = regionsOf(home, f('regions'))
     else if (cmd === 'scan') on('lift', 'domains', 'hypotheses', 'offers', 'recall')
+    else if (cmd === 'policy' || cmd === 'arch') archArgs(kind, args, f, flags, repo)
+    else if (cmd === 'solve') {
+      if (pos.length) throw new Error('fractal solve takes the request as --task FILE|TEXT')
+      args.task = taskOf(f('task'))
+      if (flags.learned === true) { args.learned = true; await withArchOperators(args, repo, home, out) }
+      if (flags['dry-run'] === true) args.dry_run = true
+      if (flags['no-tests'] === true) args.run_tests = false
+      if (f('test-cmd')) args.test_cmd = f('test-cmd')
+    }
     if (hands.sandbox === 'srt') args.sandbox = hands.sandbox
     const r = await startJob(home, kind, args, repo, hands, { detach: flags.detach === true, onLine: out })
     if (flags.detach) { out(`follow it with: fractal status ${r.job}`); return 0 }
+    if (r.result && ['policy', 'arch', 'fix'].includes(kind)) for (const l of reportLines(kind, r.result.report, kind === 'arch' ? keepPlan(home, r.job, r.result.report) : undefined)) out(l)
     return r.result && ['ready', 'done'].includes(r.result.status) ? 0 : 1
   }
   if (cmd === '_drive') {   // the detached driver of a job started with --detach or from the MCP server

@@ -9,7 +9,7 @@ import { answerQuestion, applyJob, jobState } from './job'
 import { withTeam } from './library'
 import { apiFor, detectLang, startJob, statusText, waitFor } from './run'
 
-export const VERSION = '0.1.0'
+export const VERSION = '0.2.0'
 type Args = Record<string, unknown>
 const str = (x: unknown) => (typeof x === 'string' && x ? x : undefined)
 const num = (x: unknown, d: number) => (typeof x === 'number' && x >= 0 ? Math.min(x, 50) : d)

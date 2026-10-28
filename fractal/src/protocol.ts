@@ -18,7 +18,7 @@
 import type { Need } from './tools'
 
 /** The engine's job kinds: each is a local command of its, with that command's options as args. */
-export const KINDS = ['edit', 'scan', 'domains', 'impact', 'offers'] as const
+export const KINDS = ['edit', 'scan', 'domains', 'impact', 'offers', 'policy', 'arch', 'fix', 'solve'] as const
 export type Kind = (typeof KINDS)[number]
 
 export type JobEvent = { seq: number; type: string; [k: string]: unknown }
